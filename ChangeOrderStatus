@@ -1,0 +1,111 @@
+import { json } from "@remix-run/node";
+import { authenticate } from "../shopify.server"
+import { useLoaderData, Form } from "@remix-run/react";
+
+import {
+    Page,
+    Layout,
+    Text,
+    Card,
+    Button,
+    BlockStack,
+    
+  } from "@shopify/polaris";
+
+export const action = async({request}) => {
+    const {admin, session} = await authenticate.admin(request);
+
+    const body = await request.formData();
+
+    const oid = parseInt(body.get('oid'));
+
+    const fid = parseInt(body.get('fid'));
+
+    const status = body.get('status');
+
+    const fulfillment_event = new admin.rest.resources.FulfillmentEvent({session: session});
+    fulfillment_event.order_id = oid;
+    fulfillment_event.fulfillment_id = fid;
+    fulfillment_event.status = status;
+    await fulfillment_event.save({
+    update: true,
+    });
+
+    return null;
+}
+
+export const loader = async ({request}) =>{
+    const { admin,session } = await authenticate.admin(request);
+
+    const url = new URL(request.url);
+    const id = url.searchParams.get('id');
+
+    const data = await admin.rest.resources.Fulfillment.all({
+            session: session,
+            order_id : parseInt(id),
+        });
+
+    return json(data);
+} ;
+
+export default function ch(){
+    const data = useLoaderData();
+
+    return <Page title='Change order status'>
+        <Layout>
+            <Layout.Section>
+                <BlockStack gap='500'>
+
+                    <Card>
+                        <BlockStack gap='500'>
+                        <Text variant='headingBg' as='h2'>
+                            Current order Status
+                        </Text>
+                        <Text>
+                            {data.data[0].shipment_status}
+                        </Text>
+                        </BlockStack>
+                    </Card>
+
+                    <Card>
+                    <BlockStack gap='500'>
+                        <Text variant='headingBg' as='h2'>
+                            In transit
+                        </Text>
+                        <Text>
+                            Change order status to in transit
+                        </Text>
+                        <Form method='post'>
+                            <input type="hidden" name='oid' value={data.data[0].order_id}/>
+                            <input type='hidden' name='fid' value={data.data[0].id}/>
+                            <input type='hidden' name='status' value='in_transit'/>
+                            <Button submit>
+                                Submit
+                            </Button>
+                        </Form>
+                        </BlockStack>
+                    </Card>
+
+                    <Card>
+                    <BlockStack gap='500'>
+                        <Text variant='headingBg' as='h2'>
+                            delivered
+                        </Text>
+                        <Text>
+                            Change order status to delivered
+                        </Text>
+                        <Form method='post'>
+                            <input type="hidden" name='oid' value={data.data[0].order_id}/>
+                            <input type='hidden' name='fid' value={data.data[0].id}/>
+                            <input type='hidden' name='status' value='delivered'/>
+                            <Button submit>
+                                Submit
+                            </Button>
+                        </Form>
+                        </BlockStack>
+                    </Card>
+                </BlockStack>
+            </Layout.Section>
+        </Layout>
+    </Page>
+}
